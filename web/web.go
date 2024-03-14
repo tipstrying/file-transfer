@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"ui"
 
 	_ "embed"
 
@@ -80,17 +81,29 @@ func Start() {
 func save_file(c *gin.Context, f *multipart.FileHeader, dst, name string) {
 	st1, e := os.Stat(dst)
 	if e != nil {
+		if os.IsNotExist(e) {
+			if strings.HasSuffix(dst, "files/") {
+				os.Mkdir(dst, 0666)
+				save_file(c, f, dst, name)
+				return
+			}
+		}
 		save_file(c, f, "./", name)
 		return
 	}
+
 	if st1.Mode().IsRegular() {
 		save_file(c, f, "./", name)
+		return
 	}
+
 	_, e = os.Stat(dst + name)
 	if e != nil {
 		c.SaveUploadedFile(f, dst+name)
+		ui.NewFile(name)
 		return
 	}
+
 	save_file(c, f, dst, "new_"+name)
 }
 

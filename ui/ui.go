@@ -3,6 +3,12 @@ package ui
 import (
 	"bytes"
 	"image"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -10,21 +16,48 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/skip2/go-qrcode"
 )
 
 var uidata struct {
-	qr_box     *fyne.Container
-	ip_lable   *widget.Label
-	selectd_ip string
-	ip         []string
+	qr_box         *fyne.Container
+	ip_lable       *widget.Label
+	files_lable    *widget.Button
+	selectd_ip     string
+	ip             []string
+	files_rev      uint
+	last_file_name string
+}
+
+func NewFile(name string) {
+	uidata.last_file_name = name
+	uidata.files_rev++
+	uidata.files_lable.Text = strconv.Itoa(int(uidata.files_rev))
+	uidata.files_lable.Refresh()
 }
 
 func Start(ip []string) {
 	uidata.ip = ip
 	uidata.qr_box = NewSizedBox(300, 300, false)
 	uidata.ip_lable = widget.NewLabel("")
+	uidata.files_lable = widget.NewButtonWithIcon("", theme.FolderIcon(), func() {
+		if runtime.GOOS == "windows" {
+
+			dir, e := filepath.Abs(path.Dir(os.Args[0]))
+			if e != nil {
+				return
+			}
+			st, e := os.Stat(dir + "\\files")
+			if e == nil {
+				if st.IsDir() {
+					dir = dir + "\\files"
+				}
+			}
+			exec.Command(`C:\Windows\explorer.exe`, dir).Run()
+		}
+	})
 
 	for _, ip_ := range ip {
 		if strings.HasPrefix(ip_, "http://192") {
@@ -48,7 +81,6 @@ func Start(ip []string) {
 		},
 		func(lii widget.ListItemID, co fyne.CanvasObject) {
 			co.(*widget.Label).SetText(ip[lii])
-
 		})
 	ip_list.OnSelected = func(id widget.ListItemID) {
 		uidata.selectd_ip = uidata.ip[id]
@@ -57,7 +89,7 @@ func Start(ip []string) {
 
 	ip_box := NewSizedBox(300, 350, false)
 	ip_box.Add(ip_list)
-	vbox.Add(widget.NewLabel("Welcome"))
+	vbox.Add(container.New(layout.NewHBoxLayout(), widget.NewLabel("Welcome"), layout.NewSpacer(), uidata.files_lable))
 	vbox.Add(hbox)
 	hbox.Add(ip_box)
 	vvbox := container.New(layout.NewVBoxLayout())
